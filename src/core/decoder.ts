@@ -8,6 +8,8 @@ export class VideoDecoderEngine {
   private mp4boxFile: MP4File | null = null;
   private onFrame: (frame: VideoFrame) => void;
   private onMetadata?: (metadata: any) => void;
+  private currentSampleIndex = 0;
+  private samples: any[] = [];
 
   constructor(
     onFrame: (frame: VideoFrame) => void,
@@ -79,16 +81,7 @@ export class VideoDecoderEngine {
       _ref: string,
       samples: any[]
     ) => {
-      for (const sample of samples) {
-        const chunk = new EncodedVideoChunk({
-          type: sample.is_sync ? "key" : "delta",
-          timestamp: (sample.cts * 1_000_000) / sample.timescale,
-          duration: (sample.duration * 1_000_000) / sample.timescale,
-          data: sample.data,
-        });
-
-        this.decode(chunk);
-      }
+      this.samples.push(...samples);
     };
 
     this.mp4boxFile.appendBuffer(mp4Buffer);
@@ -141,6 +134,28 @@ export class VideoDecoderEngine {
     if (this.decoder && this.decoder.state === "configured") {
       this.decoder.decode(chunk);
     }
+  }
+
+  decodeNextFrame(): boolean {
+    if (this.currentSampleIndex >= this.samples.length) {
+      return false;
+    }
+
+    const sample = this.samples[this.currentSampleIndex];
+    const chunk = new EncodedVideoChunk({
+      type: sample.is_sync ? "key" : "delta",
+      timestamp: (sample.cts * 1_000_000) / sample.timescale,
+      duration: (sample.duration * 1_000_000) / sample.timescale,
+      data: sample.data,
+    });
+
+    this.currentSampleIndex++;
+    this.decode(chunk);
+    return true;
+  }
+
+  reset() {
+    this.currentSampleIndex = 0;
   }
 
   close() {

@@ -26,7 +26,6 @@ export function VideoPlayer({
 
   const handleFrameDecoded = useCallback((frame: VideoFrame) => {
     frameQueueRef.current.push(frame);
-    setFrameCount((prev) => prev + 1);
   }, []);
 
   const handleMetadata = useCallback((meta: VideoMetadata) => {
@@ -45,11 +44,18 @@ export function VideoPlayer({
 
     renderTimerRef.current = window.setInterval(() => {
       const ctx = ctxRef.current;
-      if (!ctx) return;
+      if (!ctx || !decoderRef.current) return;
+
+      const queueTarget = 3;
+      while (frameQueueRef.current.length < queueTarget) {
+        if (!decoderRef.current.decodeNextFrame()) break;
+      }
+
       const nextFrame = frameQueueRef.current.shift();
       if (nextFrame) {
         ctx.drawImage(nextFrame, 0, 0, width, height);
         nextFrame.close();
+        setFrameCount((prev) => prev + 1);
       }
     }, frameInterval);
   }, [decodeFps, width, height]);
