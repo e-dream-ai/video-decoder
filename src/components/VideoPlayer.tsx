@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { VideoCanvas } from "./VideoCanvas";
 import { VideoDecoderEngine } from "../core/decoder";
+import { WebGLRenderer } from "../core/webgl-renderer";
 import type { VideoPlayerProps, VideoMetadata } from "../core/types";
 
 export function VideoPlayer({
@@ -16,12 +17,12 @@ export function VideoPlayer({
   const [frameCount, setFrameCount] = useState(0);
 
   const decoderRef = useRef<VideoDecoderEngine | null>(null);
-  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const rendererRef = useRef<WebGLRenderer | null>(null);
   const frameQueueRef = useRef<VideoFrame[]>([]);
   const renderTimerRef = useRef<number | null>(null);
 
-  const handleCanvasReady = useCallback((ctx: CanvasRenderingContext2D) => {
-    ctxRef.current = ctx;
+  const handleCanvasReady = useCallback((renderer: WebGLRenderer) => {
+    rendererRef.current = renderer;
   }, []);
 
   const handleFrameDecoded = useCallback((frame: VideoFrame) => {
@@ -43,8 +44,8 @@ export function VideoPlayer({
     );
 
     renderTimerRef.current = window.setInterval(() => {
-      const ctx = ctxRef.current;
-      if (!ctx || !decoderRef.current) return;
+      const renderer = rendererRef.current;
+      if (!renderer || !decoderRef.current) return;
 
       const queueTarget = 3;
       while (frameQueueRef.current.length < queueTarget) {
@@ -53,12 +54,12 @@ export function VideoPlayer({
 
       const nextFrame = frameQueueRef.current.shift();
       if (nextFrame) {
-        ctx.drawImage(nextFrame, 0, 0, width, height);
+        renderer.draw(nextFrame);
         nextFrame.close();
         setFrameCount((prev) => prev + 1);
       }
     }, frameInterval);
-  }, [decodeFps, width, height]);
+  }, [decodeFps]);
 
   useEffect(() => {
     if (isPlaying) startRenderLoop();

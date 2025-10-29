@@ -1,9 +1,10 @@
 import { useRef, useEffect } from "react";
+import { WebGLRenderer } from "../core/webgl-renderer";
 
 interface VideoCanvasProps {
   width: number;
   height: number;
-  onCanvasReady?: (ctx: CanvasRenderingContext2D) => void;
+  onCanvasReady?: (renderer: WebGLRenderer) => void;
 }
 
 export function VideoCanvas({
@@ -17,9 +18,13 @@ export function VideoCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (ctx && onCanvasReady) {
-      onCanvasReady(ctx);
+    try {
+      const renderer = new WebGLRenderer(canvas);
+      if (onCanvasReady) {
+        onCanvasReady(renderer);
+      }
+    } catch (error) {
+      console.error("Failed to initialize WebGL:", error);
     }
   }, [onCanvasReady]);
 
